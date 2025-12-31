@@ -1,0 +1,9 @@
+{
+  "name": "harroze-notifications",
+  "version": "1.0.0",
+  "description": "Notify Admin on New  Order",
+  "main": "src/main.js",
+  "dependencies": {
+    "node-appwrite": "^11.0.0"
+  }
+}
