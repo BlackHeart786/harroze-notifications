@@ -1,46 +1,57 @@
-const { Client, Messaging, ID } = require("node-appwrite");
+const { Client, Messaging, Users, ID } = require("node-appwrite");
 
 module.exports = async ({ req, res, log, error }) => {
+  const client = new Client()
+    .setEndpoint("https://sgp.cloud.appwrite.io/v1")
+    .setProject(process.env.APPWRITE_FUNCTION_PROJECT_ID)
+    .setKey(process.env.APPWRITE_API_KEY);
+
+  const messaging = new Messaging(client);
+  const users = new Users(client);
+
+  // ✅ Only run on create event
+  const event = req.headers["x-appwrite-event"] || "";
+  if (!event.includes(".create")) {
+    log("Not a create event. Skipping.");
+    return res.json({ success: true, message: "Skipped" });
+  }
+
   try {
-    const client = new Client()
-      .setEndpoint("https://sgp.cloud.appwrite.io/v1")
-      .setProject(process.env.APPWRITE_FUNCTION_PROJECT_ID)
-      .setKey(process.env.APPWRITE_API_KEY); // ✅ MUST be APPWRITE_API_KEY (not APPWRITE_APIKEY)
+    log("📨 Sending Incoming Order Call...");
 
-    const messaging = new Messaging(client);
+    const adminUserId = process.env.ADMIN_USER_ID;
 
-    const eventName = req.headers["x-appwrite-event"] || "";
-    log("📌 Event: " + eventName);
-
-    // ✅ Only trigger on create
-    if (!eventName.includes(".create")) {
-      log("⏭️ Not a create event. Skipping.");
-      return res.json({ success: true, skipped: true });
+    if (!adminUserId) {
+      throw new Error("ADMIN_USER_ID is missing in env variables");
     }
 
-    // ✅ You MUST send DATA for background screen off
-    const payload = {
-      type: "order_call",
-      title: "📞 New Order Received!",
-      body: "Tap to Accept or Reject",
-      click_action: "FLUTTER_NOTIFICATION_CLICK",
-    };
+    // ✅ Get Admin Push Targets
+    const targetsRes = await users.listTargets(adminUserId);
 
-    log("📨 Sending DATA Push to Admin: " + process.env.ADMIN_USER_ID);
+    if (!targetsRes.targets || targetsRes.targets.length === 0) {
+      throw new Error("❌ No push targets found for ADMIN user. Device not registered!");
+    }
 
+    const targetIds = targetsRes.targets.map((t) => t.$id);
+
+    log("✅ Found targets: " + JSON.stringify(targetIds));
+
+    // ✅ Send push with DATA payload (MOST IMPORTANT ✅)
     await messaging.createPush(
       ID.unique(),
-      payload.title,
-      payload.body,
+      "📞 New Order Received!",
+      "Tap to Accept or Reject",
       [], // topics
-      [process.env.ADMIN_USER_ID], // ✅ users
-      payload // ✅ DATA PAYLOAD (MOST IMPORTANT)
+      targetIds, // ✅ TARGET IDs ✅
+      {
+        type: "order_call",
+      }
     );
 
-    log("✅ Push Sent Successfully!");
+    log("✅ Push Sent to Admin Targets!");
     return res.json({ success: true });
   } catch (e) {
-    error("❌ Push Failed: " + e.message);
+    error("❌ Failed to send push: " + e.message);
     return res.json({ success: false, error: e.message });
   }
 };
