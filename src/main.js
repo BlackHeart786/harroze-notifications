@@ -9,59 +9,38 @@ module.exports = async ({ req, res, log, error }) => {
   const messaging = new Messaging(client);
   const users = new Users(client);
 
-  // ✅ Only run on create event
+  // ✅ only create events
   const event = req.headers["x-appwrite-event"] || "";
   if (!event.includes(".create")) {
-    log("Not a create event. Skipping...");
-    return res.json({ success: true, message: "Skipped" });
+    return res.json({ success: true, message: "Skipped (not create)" });
   }
 
   try {
-    log("📨 Sending Incoming Order Call...");
-
     const adminUserId = process.env.ADMIN_USER_ID;
 
-    if (!adminUserId) {
-      throw new Error("ADMIN_USER_ID missing in env variables");
-    }
-
-    // ✅ Get admin targets
+    // ✅ get admin push targets
     const targetsRes = await users.listTargets(adminUserId);
 
-    if (!targetsRes.targets || targetsRes.targets.length === 0) {
-      throw new Error("❌ No targets found. Admin device not registered!");
-    }
-
-    // ✅ ONLY PUSH TARGETS ✅
-    const pushTargets = targetsRes.targets.filter(
-      (t) => t.providerType === "push"
-    );
+    const pushTargets = targetsRes.targets.filter((t) => t.providerType === "push");
 
     if (pushTargets.length === 0) {
-      throw new Error("❌ No PUSH targets found. (Only push works for FCM)");
+      throw new Error("No PUSH targets found. Admin device not registered.");
     }
 
-    // ✅ Extract real push target IDs
     const pushTargetIds = pushTargets.map((t) => t.$id);
 
-    log("✅ PUSH Target IDs: " + JSON.stringify(pushTargetIds));
-
-    // ✅ Send push to PUSH TARGET IDS ✅✅✅
     await messaging.createPush(
       ID.unique(),
       "📞 New Order Received!",
       "Tap to Accept or Reject",
-      [], // topics
-      pushTargetIds, // ✅ IMPORTANT ✅ push target IDs only
-      {
-        type: "order_call",
-      }
+      [],
+      pushTargetIds, // ✅ CORRECT ✅
+      { type: "order_call" }
     );
 
-    log("✅ Push Sent Successfully!");
-    return res.json({ success: true });
+    return res.json({ success: true, sentTo: pushTargetIds });
   } catch (e) {
-    error("❌ Failed to send push: " + e.message);
+    error(e.message);
     return res.json({ success: false, error: e.message });
   }
 };
