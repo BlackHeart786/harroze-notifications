@@ -33,9 +33,10 @@ module.exports = async ({ req, res, log, error }) => {
       ID.unique(),
       "📞 New Order Received!",
       "Tap to Accept or Reject",
-      [],
-      pushTargetIds, // ✅ CORRECT ✅
-      { type: "order_call" }
+      [], // Topics
+      [], // [FIX] Users (You were missing this argument!)
+      pushTargetIds, // Targets (Now in the correct 6th position)
+      { type: "order_call" } // Data
     );
 
     return res.json({ success: true, sentTo: pushTargetIds });
