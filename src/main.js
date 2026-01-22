@@ -1,7 +1,6 @@
 const { Client, Messaging, ID } = require("node-appwrite");
 
 module.exports = async ({ req, res, log, error }) => {
-  // 1. Setup the Appwrite Client
   const client = new Client()
     .setEndpoint("https://sgp.cloud.appwrite.io/v1")
     .setProject(process.env.APPWRITE_FUNCTION_PROJECT_ID)
@@ -9,34 +8,20 @@ module.exports = async ({ req, res, log, error }) => {
 
   const messaging = new Messaging(client);
 
-  // 2. Security Check: Only run if a NEW order is created
-  if (
-    req.headers["x-appwrite-event"] &&
-    !req.headers["x-appwrite-event"].includes(".create")
-  ) {
-    log("Not a new order. Skipping.");
-    return res.json({ success: true, message: "Skipped (Not a create event)" });
-  }
-
   try {
-    log("Sending Incoming Order Call Alert...");
+    log("📨 Sending Incoming Order Call...");
 
     await messaging.createPush(
-      ID.unique(), // Message ID
-      "📞 New Order Received!", // Title
-      "Tap to Accept or Reject", // Body
-      [], // Topics (empty)
-      [process.env.ADMIN_USER_ID], // Target: Admin User ID
+      ID.unique(),
+      "📞 New Order Received!",
+      "Tap to Accept or Reject",
+      [],
 
-      
-      {
-        type: "order_call", 
-        restaurant: "Harroze Biryani",
-        time: new Date().toISOString(),
-      }
+      // ✅ THIS must be the TARGET ID
+      [process.env.ADMIN_TARGET_ID]
     );
 
-    log("✅ Incoming Order Call Notification Sent to Admin!");
+    log("✅ Notification Sent Successfully!");
     return res.json({ success: true });
   } catch (e) {
     error("❌ Failed to send notification: " + e.message);
