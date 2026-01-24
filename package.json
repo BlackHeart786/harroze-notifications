@@ -1,9 +1,9 @@
 {
   "name": "harroze-notifications",
   "version": "1.0.0",
-  "description": "Notify Admin on New Biryani Order",
-  "main": "src/main.js",
+  "main": "main.js",
   "dependencies": {
-    "node-appwrite": "^14.0.0"
+    "firebase-admin": "^12.3.0",
+    "node-appwrite": "^13.0.0"
   }
 }
