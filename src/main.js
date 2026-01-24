@@ -4,13 +4,11 @@ let firebaseReady = false;
 
 module.exports = async ({ req, res, log, error }) => {
   try {
-    // ✅ Only run for "create" events
     const event = req.headers["x-appwrite-event"] || "";
     if (!event.includes(".create")) {
       return res.json({ success: true, message: "Skipped (not create)" });
     }
 
-    // ✅ Init Firebase once
     if (!firebaseReady) {
       const serviceAccount = JSON.parse(process.env.FCM_SERVICE_ACCOUNT_JSON);
 
@@ -22,20 +20,21 @@ module.exports = async ({ req, res, log, error }) => {
       log("✅ Firebase Admin initialized");
     }
 
-    // ✅ Send to TOPIC (most reliable)
+    // ✅ DATA-ONLY PUSH (BEST FOR CALLKIT)
     const message = {
       topic: "admin_orders",
-      notification: {
-        title: "📦 New Order Received!",
-        body: "Tap to Accept or Reject",
+      android: {
+        priority: "high",
       },
       data: {
         type: "order_call",
+        title: "📦 New Order Received!",
+        body: "Tap to Accept or Reject",
       },
     };
 
     const result = await admin.messaging().send(message);
-    log("✅ Sent to topic: " + result);
+    log("✅ Sent DATA-only push: " + result);
 
     return res.json({ success: true, messageId: result });
   } catch (e) {
