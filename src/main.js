@@ -4,15 +4,21 @@ let firebaseReady = false;
 
 module.exports = async ({ req, res, log, error }) => {
   try {
-    // ✅ Trigger only on create
+    // ✅ Only trigger for order create
     const event = req.headers["x-appwrite-event"] || "";
     if (!event.includes(".create")) {
       return res.json({ success: true, message: "Skipped (not create event)" });
     }
 
-    // ✅ Init firebase once
+    // ✅ Init Firebase only once (FAST)
     if (!firebaseReady) {
-      const serviceAccount = JSON.parse(process.env.FCM_SERVICE_ACCOUNT_JSON);
+      const serviceAccount = JSON.parse(
+        process.env.FCM_SERVICE_ACCOUNT_JSON || "{}"
+      );
+
+      if (!serviceAccount.project_id) {
+        throw new Error("FCM_SERVICE_ACCOUNT_JSON is missing or invalid");
+      }
 
       admin.initializeApp({
         credential: admin.credential.cert(serviceAccount),
@@ -22,50 +28,43 @@ module.exports = async ({ req, res, log, error }) => {
       log("✅ Firebase Admin initialized");
     }
 
-    // ✅ Unique orderId (must be unique always)
+    // ✅ Create unique order id
     const orderId = Date.now().toString();
 
-    // ✅ IMPORTANT ✅ Send notification + data
+    // ✅ Data-only payload (FAST & BEST FOR BACKGROUND)
     const message = {
       topic: "order_received",
-
-      // ✅ This makes Android show notification on lockscreen always
-      notification: {
-        title: "📦 New Order Received!",
-        body: "Tap Accept or Reject",
-      },
-
-      // ✅ This is your flutter app logic data
       data: {
         type: "order_call",
-        orderId: orderId,
+        orderId,
         title: "📦 New Order Received!",
         body: "Tap Accept or Reject",
       },
-
       android: {
         priority: "high",
-
-        ttl: 60000, // ✅ 60 sec
-
-        notification: {
-          channelId: "order_call_channel", // ✅ MUST MATCH flutter channel
-          priority: "max",
-          visibility: "public",
-          sound: "default",
-          defaultSound: true,
-          defaultVibrateTimings: true,
-        },
       },
     };
 
+    // ✅ Send notification
     const result = await admin.messaging().send(message);
 
     log("✅ Sent to topic order_received => " + result);
 
-    return res.json({ success: true, messageId: result });
+    // ✅ Return immediately (IMPORTANT ✅)
+    return res.json({
+      success: true,
+      messageId: result,
+      orderId,
+    });
   } catch (e) {
-    error("❌ " + e.message);
-    return res.json({ success: false, error: e.message }, 500);
+    error("❌ ERROR: " + e.message);
+
+    return res.json(
+      {
+        success: false,
+        error: e.message,
+      },
+      500
+    );
   }
 };
