@@ -1,9 +1,9 @@
 {
   "name": "harroze-notifications",
   "version": "1.0.0",
-  "main": "main.js",
+  "main": "index.js",
+  "type": "commonjs",
   "dependencies": {
-    "firebase-admin": "^12.3.0",
-    "node-appwrite": "^13.0.0"
+    "firebase-admin": "^12.0.0"
   }
 }

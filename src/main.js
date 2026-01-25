@@ -4,21 +4,14 @@ let firebaseReady = false;
 
 module.exports = async ({ req, res, log, error }) => {
   try {
-    // ✅ Only trigger for order create
     const event = req.headers["x-appwrite-event"] || "";
     if (!event.includes(".create")) {
       return res.json({ success: true, message: "Skipped (not create event)" });
     }
 
-    // ✅ Init Firebase only once (FAST)
+    // ✅ Init Firebase once
     if (!firebaseReady) {
-      const serviceAccount = JSON.parse(
-        process.env.FCM_SERVICE_ACCOUNT_JSON || "{}"
-      );
-
-      if (!serviceAccount.project_id) {
-        throw new Error("FCM_SERVICE_ACCOUNT_JSON is missing or invalid");
-      }
+      const serviceAccount = JSON.parse(process.env.FCM_SERVICE_ACCOUNT_JSON);
 
       admin.initializeApp({
         credential: admin.credential.cert(serviceAccount),
@@ -28,15 +21,14 @@ module.exports = async ({ req, res, log, error }) => {
       log("✅ Firebase Admin initialized");
     }
 
-    // ✅ Create unique order id
     const orderId = Date.now().toString();
 
-    // ✅ Data-only payload (FAST & BEST FOR BACKGROUND)
+    // ✅ DATA ONLY MESSAGE (FAST + RELIABLE)
     const message = {
       topic: "order_received",
       data: {
         type: "order_call",
-        orderId,
+        orderId: orderId,
         title: "📦 New Order Received!",
         body: "Tap Accept or Reject",
       },
@@ -45,12 +37,10 @@ module.exports = async ({ req, res, log, error }) => {
       },
     };
 
-    // ✅ Send notification
     const result = await admin.messaging().send(message);
 
     log("✅ Sent to topic order_received => " + result);
 
-    // ✅ Return immediately (IMPORTANT ✅)
     return res.json({
       success: true,
       messageId: result,
@@ -58,13 +48,6 @@ module.exports = async ({ req, res, log, error }) => {
     });
   } catch (e) {
     error("❌ ERROR: " + e.message);
-
-    return res.json(
-      {
-        success: false,
-        error: e.message,
-      },
-      500
-    );
+    return res.json({ success: false, error: e.message }, 500);
   }
 };
