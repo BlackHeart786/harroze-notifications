@@ -22,25 +22,46 @@ module.exports = async ({ req, res, log, error }) => {
       log("✅ Firebase Admin initialized");
     }
 
-    // ✅ Make Unique orderId always
+    // ✅ Unique orderId (must be unique always)
     const orderId = Date.now().toString();
 
-    // ✅ DATA PAYLOAD ONLY (VERY IMPORTANT)
+    // ✅ IMPORTANT ✅ Send notification + data
     const message = {
       topic: "order_received",
+
+      // ✅ This makes Android show notification on lockscreen always
+      notification: {
+        title: "📦 New Order Received!",
+        body: "Tap Accept or Reject",
+      },
+
+      // ✅ This is your flutter app logic data
       data: {
         type: "order_call",
         orderId: orderId,
         title: "📦 New Order Received!",
         body: "Tap Accept or Reject",
       },
+
       android: {
         priority: "high",
+
+        ttl: 60000, // ✅ 60 sec
+
+        notification: {
+          channelId: "order_call_channel", // ✅ MUST MATCH flutter channel
+          priority: "max",
+          visibility: "public",
+          sound: "default",
+          defaultSound: true,
+          defaultVibrateTimings: true,
+        },
       },
     };
 
     const result = await admin.messaging().send(message);
-    log("✅ Sent to topic order_received: " + result);
+
+    log("✅ Sent to topic order_received => " + result);
 
     return res.json({ success: true, messageId: result });
   } catch (e) {
