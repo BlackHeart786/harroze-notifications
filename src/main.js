@@ -20,7 +20,7 @@ module.exports = async ({ req, res, log, error }) => {
       log("✅ Firebase Admin initialized");
     }
 
-    // ✅ DATA-ONLY PUSH (BEST FOR CALLKIT)
+    // ✅ DATA ONLY - this triggers background handler reliably
     const message = {
       topic: "admin_orders",
       android: {
@@ -28,14 +28,14 @@ module.exports = async ({ req, res, log, error }) => {
       },
       data: {
         type: "order_call",
-        title: "📦 New Order Received!",
-        body: "Tap to Accept or Reject",
+        title: "HARROZE BIRIYANI",
+        body: "📦New Order Received! Tap to open",
       },
     };
 
     const result = await admin.messaging().send(message);
-    log("✅ Sent DATA-only push: " + result);
 
+    log("✅ DATA push sent: " + result);
     return res.json({ success: true, messageId: result });
   } catch (e) {
     error("❌ " + e.message);
