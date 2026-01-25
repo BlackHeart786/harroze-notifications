@@ -23,7 +23,7 @@ module.exports = async ({ req, res, log, error }) => {
 
     const orderId = Date.now().toString();
 
-    // ✅ DATA ONLY MESSAGE (FAST + RELIABLE)
+    
     const message = {
       topic: "order_received",
       data: {
