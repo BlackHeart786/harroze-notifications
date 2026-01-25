@@ -6,11 +6,12 @@ module.exports = async ({ req, res, log, error }) => {
   try {
     const event = req.headers["x-appwrite-event"] || "";
 
-    // ✅ Only on create
+    // ✅ Trigger only on CREATE events
     if (!event.includes(".create")) {
       return res.json({ success: true, message: "Skipped (not create event)" });
     }
 
+    // ✅ Init Firebase Admin once
     if (!firebaseReady) {
       const serviceAccount = JSON.parse(process.env.FCM_SERVICE_ACCOUNT_JSON);
 
@@ -22,26 +23,44 @@ module.exports = async ({ req, res, log, error }) => {
       log("✅ Firebase Admin initialized");
     }
 
-    const orderId = Date.now().toString();
+    // ✅ Get orderId from Appwrite document payload (BEST)
+    // Appwrite sends event data inside req.body as JSON string sometimes
+    let body = req.body;
 
-    // ✅ DATA ONLY (NO notification block)
+    try {
+      if (typeof body === "string") body = JSON.parse(body);
+    } catch (_) {}
+
+    // ✅ Get Appwrite document ID (stable orderId)
+    const orderId =
+      body?.payload?.$id ||
+      body?.payload?.document?.$id ||
+      body?.$id ||
+      Date.now().toString();
+
+    // ✅ DATA ONLY (DO NOT ADD notification:{} )
     const message = {
       topic: "order_received",
       data: {
         type: "order_call",
-        orderId: orderId,
-        title: "📦 New Order Received!",
-        body: "Tap Accept or Reject",
+        orderId: String(orderId),
       },
+
       android: {
         priority: "high",
+        ttl: 60 * 1000, // ✅ 1 minute
       },
     };
 
     const result = await admin.messaging().send(message);
-    log("✅ Data sent to topic order_received => " + result);
 
-    return res.json({ success: true, messageId: result, orderId });
+    log("✅ Sent call push to topic order_received => " + result);
+
+    return res.json({
+      success: true,
+      messageId: result,
+      orderId: String(orderId),
+    });
   } catch (e) {
     error("❌ " + e.message);
     return res.json({ success: false, error: e.message }, 500);
