@@ -4,14 +4,13 @@ let firebaseReady = false;
 
 module.exports = async ({ req, res, log, error }) => {
   try {
+    // ✅ Trigger only on create
     const event = req.headers["x-appwrite-event"] || "";
-
-    // ✅ Only order create event
     if (!event.includes(".create")) {
-      return res.json({ success: true, message: "Skipped (not create)" });
+      return res.json({ success: true, message: "Skipped (not create event)" });
     }
 
-    // ✅ Init Firebase Admin once
+    // ✅ Init firebase once
     if (!firebaseReady) {
       const serviceAccount = JSON.parse(process.env.FCM_SERVICE_ACCOUNT_JSON);
 
@@ -23,20 +22,25 @@ module.exports = async ({ req, res, log, error }) => {
       log("✅ Firebase Admin initialized");
     }
 
-    // ✅ DATA ONLY PUSH (NO notification:{} )
+    // ✅ Make Unique orderId always
+    const orderId = Date.now().toString();
+
+    // ✅ DATA PAYLOAD ONLY (VERY IMPORTANT)
     const message = {
       topic: "order_received",
-      android: { priority: "high" },
       data: {
         type: "order_call",
+        orderId: orderId,
         title: "📦 New Order Received!",
         body: "Tap Accept or Reject",
-        orderId: Date.now().toString(),
+      },
+      android: {
+        priority: "high",
       },
     };
 
     const result = await admin.messaging().send(message);
-    log("✅ Sent to topic order_received => " + result);
+    log("✅ Sent to topic order_received: " + result);
 
     return res.json({ success: true, messageId: result });
   } catch (e) {
