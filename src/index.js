@@ -1,44 +1,35 @@
-const admin = require("firebase-admin");
+const sdk = require("node-appwrite");
 
-let firebaseReady = false;
-
-module.exports = async ({ req, res, log, error }) => {
+module.exports = async ({ req, res }) => {
   try {
-    const event = req.headers["x-appwrite-event"] || "";
-    if (!event.includes(".create")) {
-      return res.json({ success: true, message: "Skipped" });
-    }
+    const client = new sdk.Client()
+      .setEndpoint(process.env.APPWRITE_ENDPOINT)
+      .setProject(process.env.APPWRITE_FUNCTION_PROJECT_ID)
+      .setKey(process.env.APPWRITE_API_KEY);
 
-    if (!firebaseReady) {
-      const serviceAccount = JSON.parse(process.env.FCM_SERVICE_ACCOUNT_JSON);
+    const messaging = new sdk.Messaging(client);
 
-      admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
-      });
+    const orderId = req.body?.orderId || Date.now().toString();
 
-      firebaseReady = true;
-      log("✅ Firebase Admin initialized");
-    }
-
-    const orderId = Date.now().toString();
-
-    const message = {
-      topic: "order_received",
-      data: {
-        type: "order_call",
-        orderId,
-        title: "📦 New Order Received!",
-        body: "Tap Accept or Reject",
+    await messaging.createPush(
+      "order_received", // messageId
+      {
+        title: "New Order",
+        body: "New order received",
+        data: {
+          type: "order_call",
+          orderId: orderId,
+        },
       },
-      android: { priority: "high" },
-    };
+      ["user:694d508c97a59049afe8"] 
+    );
 
-    const result = await admin.messaging().send(message);
-    log("✅ Sent topic push: " + result);
-
-    return res.json({ success: true, messageId: result });
-  } catch (e) {
-    error("❌ " + e.message);
-    return res.json({ success: false, error: e.message }, 500);
+    return res.json({
+      success: true,
+      orderId,
+    });
+  } catch (err) {
+    console.error(err);
+    return res.json({ error: err.message }, 500);
   }
 };
