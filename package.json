@@ -1,13 +1,9 @@
 {
-  "name": "harroze-push-server",
+  "name": "harroze-notifications",
   "version": "1.0.0",
   "main": "src/index.js",
   "type": "commonjs",
-  "scripts": {
-    "start": "node index.js"
-  },
   "dependencies": {
-    "express": "^4.19.2",
-    "firebase-admin": "^12.3.1"
+    "node-appwrite": "^13.0.0"
   }
 }
