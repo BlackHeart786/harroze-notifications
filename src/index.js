@@ -1,54 +1,44 @@
-const express = require("express");
 const admin = require("firebase-admin");
-
-const app = express();
-app.use(express.json());
-
 
 let firebaseReady = false;
 
-function initFirebase() {
-  if (firebaseReady) return;
-
-  const serviceAccount = JSON.parse(process.env.FCM_SERVICE_ACCOUNT_JSON);
-
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-  });
-
-  firebaseReady = true;
-  console.log("✅ Firebase Admin Initialized");
-}
-
-// ✅ API Endpoint called by USER APP after order created
-app.post("/sendOrderPush", async (req, res) => {
+module.exports = async ({ req, res, log, error }) => {
   try {
-    initFirebase();
+    const event = req.headers["x-appwrite-event"] || "";
+    if (!event.includes(".create")) {
+      return res.json({ success: true, message: "Skipped" });
+    }
 
-    const orderId = req.body.orderId || Date.now().toString();
+    if (!firebaseReady) {
+      const serviceAccount = JSON.parse(process.env.FCM_SERVICE_ACCOUNT_JSON);
+
+      admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
+      });
+
+      firebaseReady = true;
+      log("✅ Firebase Admin initialized");
+    }
+
+    const orderId = Date.now().toString();
 
     const message = {
       topic: "order_received",
       data: {
         type: "order_call",
-        orderId: orderId,
+        orderId,
+        title: "📦 New Order Received!",
+        body: "Tap Accept or Reject",
       },
-      android: {
-        priority: "high",
-      },
+      android: { priority: "high" },
     };
 
     const result = await admin.messaging().send(message);
+    log("✅ Sent topic push: " + result);
 
-    return res.json({ success: true, messageId: result, orderId });
+    return res.json({ success: true, messageId: result });
   } catch (e) {
-    return res.status(500).json({ success: false, error: e.message });
+    error("❌ " + e.message);
+    return res.json({ success: false, error: e.message }, 500);
   }
-});
-
-app.get("/", (req, res) => {
-  res.send("✅ Harroze Push Server Running");
-});
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log("✅ Server running on port " + PORT));
+};
