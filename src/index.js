@@ -4,8 +4,6 @@ const admin = require("firebase-admin");
 const app = express();
 app.use(express.json());
 
-// ✅ Put Firebase service account JSON inside ENV
-// process.env.FCM_SERVICE_ACCOUNT_JSON = "... one line json ..."
 
 let firebaseReady = false;
 
@@ -29,7 +27,6 @@ app.post("/sendOrderPush", async (req, res) => {
 
     const orderId = req.body.orderId || Date.now().toString();
 
-    // ✅ DATA ONLY (NO notification key)
     const message = {
       topic: "order_received",
       data: {
